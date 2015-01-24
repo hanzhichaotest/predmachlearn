@@ -1,0 +1,55 @@
+---
+title: "Prediction Assignment Writeup"
+author: "Zhichao HAN"
+date: "01/24/2015"
+output: pdf_document
+---
+
+## Introduction
+
+This is a report for pratical machine learning course.
+
+## Data Preparation
+
+```{r}
+library(caret)
+set.seed(1024)
+data <- read.csv('data/pml-training.csv')
+trainIndex <- createDataPartition(y=data$classe, p=0.6, list=FALSE)
+data.train <- data[trainIndex, ]
+data.valid <- data[-trainIndex, ]
+data.test <- read.csv('data/pml-testing.csv')
+
+```
+
+The data from ``pml-training`` is loaded and splitted into training set and testing set. 
+
+```{r}
+no_na <- sapply(data.train, function(x) !sum(is.na(x)))
+data.train.cleaned = data.train[, no_na][, -c(1:4)]
+```
+
+The columns with NA and the first 4 columns are removed.
+
+
+```{r}
+fitControl <- trainControl(method = "cv",
+                           number = 10, repeats = 10)
+```
+
+The training set is used to create 10 folds for the model.
+
+## Model: GLM
+
+```{r}
+modFit <- train(as.factor(classe)~., data=data.train.cleaned, method='rf', 
+                trControl = fitControl, 
+                verbose=FALSE)
+modFit
+```
+
+## Out-of-sample error
+
+```{r}
+
+```
