@@ -1,55 +1,59 @@
 ---
 title: "Prediction Assignment Writeup"
 author: "Zhichao HAN"
-date: "01/24/2015"
-output: pdf_document
+date: "02/20/2015"
+output: html_document
 ---
 
 ## Introduction
 
 This is a report for pratical machine learning course.
 
-## Data Preparation
+## Data Preprocess
 
 ```{r}
 library(caret)
 set.seed(1024)
-data <- read.csv('data/pml-training.csv')
-trainIndex <- createDataPartition(y=data$classe, p=0.6, list=FALSE)
-data.train <- data[trainIndex, ]
-data.valid <- data[-trainIndex, ]
-data.test <- read.csv('data/pml-testing.csv')
 
+data.train <- read.csv("data/pml-training.csv", stringsAsFactors=FALSE)
+data.train$classe <- as.factor(data.train$classe)
+data.train <- data.train[,-nearZeroVar(data.train)]
+data.train <- data.train[,-c(1,2,3,4,5,6,7)]
 ```
 
-The data from ``pml-training`` is loaded and splitted into training set and testing set. 
+The training data has been loaded. Some unrelavent features have been removed from ``data.train``.
 
 ```{r}
-no_na <- sapply(data.train, function(x) !sum(is.na(x)))
-data.train.cleaned = data.train[, no_na][, -c(1:4)]
+inTrain <- createDataPartition(y=data.train$classe, p=0.6, list=FALSE)
+data.valid <- data.train[-inTrain,]
+data.train <- data.train[inTrain,]
 ```
 
-The columns with NA and the first 4 columns are removed.
-
-
-```{r}
-fitControl <- trainControl(method = "cv",
-                           number = 10, repeats = 10)
-```
-
-The training set is used to create 10 folds for the model.
-
-## Model: GLM
-
-```{r}
-modFit <- train(as.factor(classe)~., data=data.train.cleaned, method='rf', 
-                trControl = fitControl, 
-                verbose=FALSE)
-modFit
-```
-
-## Out-of-sample error
+The dataset has been splitted into train-set and valid-set.
 
 ```{r}
 
+preObj <- preProcess(data.train[,-length(data.train)],method=c("center", "scale", "knnImpute", "pca"), thresh=0.80)
+data.train.transformed <- predict(preObj,data.train[,-length(data.train)])
+data.valid.transformed <- predict(preObj,data.valid[,-length(data.valid)])
+```
+
+The missing data has been filled by knn-impute method and the dimension has been reduced via PCA. Both the train-set and the valid-set have been transformed.
+
+## Training and Predicting
+
+```{r}
+modelFit <- train(data.train$classe ~.,data=data.train.transformed, method='rf', ntree=10)
+y.valid <- predict(modelFit, data.valid.transformed)
+confusionMatrix(data.valid$classe, y.valid)
+```
+
+RandomForest - ``rf`` has been used as the model to train and the accuracy on the validating dataset is around 90%.
+
+```{r}
+data.test <- read.csv("data/pml-testing.csv", stringsAsFactors=FALSE)
+data.test <- data.test[,names(data.test) %in% names(data.train)]
+
+data.test.transformed <- predict(preObj, data.test)
+y.test <- predict(modelFit, data.test.transformed)
 ```
